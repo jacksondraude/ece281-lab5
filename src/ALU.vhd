@@ -60,28 +60,61 @@ begin
             v_result := v_a + v_b;
             w_result <= std_logic_vector(v_result(7 downto 0));
             w_carry <= v_result(8);
+            w_neg <= v_result(7);
             w_overflow <= (not i_A(7) and not i_B(7) and v_result(7)) or (i_A(7) and i_B(7) and not v_result(7));
+            if v_result(7 downto 0) = "0000000" then
+                w_zero <= '1';
+            else
+                w_zero <= '0';
+            end if;
             
             when "001" => 
             v_result := v_a - v_b;
             w_result <= std_logic_vector(v_result(7 downto 0));
             w_carry <= v_result(8);
+            w_neg <= v_result(7);
             w_overflow <= (not i_A(7) and  i_B(7) and v_result(7)) or (i_A(7) and not i_B(7) and not v_result(7));
+            if v_result(7 downto 0) = "0000000" then
+                w_zero <= '1';
+            else
+                w_zero <= '0';
+            end if;
             
             when "010" => 
             w_result <= i_A and i_B;
             w_carry <= '0';
             w_overflow <= '0';
+            w_neg <= v_result(7);
+            if v_result(7 downto 0) = "0000000" then
+                w_zero <= '1';
+            else
+                w_zero <= '0';
+            end if;
+            
             
             when "011" => 
             w_result <= i_A or i_B;
             w_carry <= '0';
             w_overflow <= '0';
+            w_neg <= v_result(7);
+            if v_result(7 downto 0) = "0000000" then
+                w_zero <= '1';
+            else
+                w_zero <= '0';
+            end if;
+            
             
             when others => 
             w_result <= (others => '0');
             w_carry <= '0';
             w_overflow <= '0';
+            w_neg <= v_result(7);
+            if v_result(7 downto 0) = "0000000" then
+                w_zero <= '1';
+            else
+                w_zero <= '0';
+            end if;
+            
             
         end case;
     end process;
