@@ -38,8 +38,33 @@ entity controller_fsm is
 end controller_fsm;
 
 architecture FSM of controller_fsm is
-
+    type sm_cpu is (s_idle, s_loadA, s_loadB, s_calc);
+    signal f_state : sm_cpu := s_idle;
 begin
+    state_reg : process(i_adv)
+    begin
+        if rising_edge(i_adv) then
+            if i_reset = '1' then
+                f_state <= s_idle;
+            else
+                case f_state is
+                    when s_idle => f_state <= s_loadA;
+                    when s_loadA => f_state <= s_loadB;
+                    when s_loadB => f_state <= s_calc;
+                    when s_calc => f_state <= s_idle;
+                    
+                end case;
+             end if;
+          end if;
+       end process;
+       
+       o_cycle <= "0001" when f_state = s_idle else
+                  "0010" when f_state = s_loadA else
+                  "0100" when f_state = s_loadB else
+                  "1000";
+   
+                
+
 
 
 end FSM;
