@@ -13,7 +13,7 @@
 --|    ff_<signal name>         = pipeline stage (ff_, fff_, etc.)
 --|    <signal name>_n          = active low signal
 --|    w_<signal name>          = top level wiring signal
---|    g_<generic name>         = generic
+--|    g_<generic name>         = generic2
 --|    k_<constant name>        = constant
 --|    v_<variable name>        = variable
 --|    sm_<state machine type>  = state machine type definition
@@ -56,7 +56,8 @@ component clock_divider is
 end component;
 
 component controller_fsm is
-    Port ( i_reset : in STD_LOGIC;
+    Port ( i_clk : in std_logic;
+           i_reset : in STD_LOGIC;
            i_adv : in STD_LOGIC;
            o_cycle : out STD_LOGIC_VECTOR (3 downto 0));
 end component;
@@ -118,8 +119,40 @@ signal w_tdm_data : std_logic_vector(3 downto 0);
 signal w_tdm_sel : std_logic_vector(3 downto 0);
 
 signal w_seg_raw : std_logic_vector(6 downto 0);
+signal w_sign_digit : std_logic_vector(3 downto 0);
+
+signal f_btnC_count : integer range 0 to 1000000 := 0;
+signal f_btnC_stable : std_logic := '0';
+signal f_btnC_prev : std_logic := '0';
+signal w_btnC_rise : std_logic;
+
 begin
 	-- PORT MAPS ----------------------------------------
+	debounce : process(clk)
+	begin  
+	   if rising_edge(clk) then
+	       if btnU = '1' then
+	           f_btnC_count <= 0;
+	           f_btnC_stable <= '0';
+	           f_btnC_prev <= '0';
+	       else 
+	           if btnC = '1' then
+	                if f_btnC_count = 1000000 then
+	                   f_btnC_stable <= '1';
+	               else    
+	                   f_btnC_count <= f_btnC_count + 1;
+	               end if;
+	        else
+	           f_btnC_count <= 0;
+	           f_btnC_stable <= '0';
+	        end if;
+	        f_btnC_prev <= f_btnC_stable;
+	        end if;
+	    end if;
+	end process;
+	
+	w_btnC_rise <= '1' when (f_btnC_stable = '1' and f_btnC_prev = '0') else '0';
+	
     u_clkdiv : clock_divider
         generic map (k_DIV => 50000)
         port map (
@@ -130,8 +163,9 @@ begin
        
     u_fsm : controller_fsm
         port map (
+            i_clk => clk,
             i_reset => btnU,
-            i_adv => btnC,
+            i_adv => w_btnC_rise,
             o_cycle => w_cycle
         );
         
@@ -158,7 +192,7 @@ begin
         port map( 
             i_clk => w_clk_tdm,
             i_reset => btnU,
-            i_D3 => "1111",
+            i_D3 => w_sign_digit,
             i_D2 => w_hund,
             i_D1 => w_tens,
             i_D0 => w_ones,
@@ -172,17 +206,17 @@ begin
         );
       
 	
-	register_process : process(btnC)
+	register_process : process(clk)
 	begin
-	   if rising_edge(btnC) then
+	   if rising_edge(clk) then
 	       if btnU = '1' then
 	           f_A <= (others => '0');
 	           f_B <= (others => '0');
-	       else
-	           if w_cycle(1) = '1' then
+	       elsif w_btnC_rise = '1' then
+	           if w_cycle = "0001" then
 	               f_A <= sw;
 	           end if;
-	           if w_cycle(2) = '1' then
+	           if w_cycle = "0010" then
 	               f_B <= sw;
 	           end if;
 	        end if;
@@ -194,13 +228,15 @@ begin
 	w_display <= (others => '0') when w_cycle = "0001" else
 	             f_A when w_cycle = "0010" else
 	             f_B when w_cycle = "0100" else
-	             w_alu_result;
+	             w_alu_result when w_cycle = "1000" else
+	             (others => '0');
+	w_sign_digit <= "1010" when w_sign ='1' else "1111";
 	             
-    seg <= "0001000" when (w_sign = '1' and w_tdm_sel = "1110") else
-           "1111111" when (w_sign = '0' and w_tdm_sel = "1110") else
-           w_seg_raw;
+    seg <= "1111110" when (w_sign = '1' and w_tdm_sel = "0111") else
+            w_seg_raw;
            
    an <= "1111" when w_cycle = "0001" else
+         "1111" when (w_sign = '0' and w_tdm_sel = "0111") else
         w_tdm_sel;
    
    
